@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sports Bot</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:linear-gradient(135deg,#1a1c2e 0%,#2d2f4a 100%);min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:2rem 1rem}
+    .app{width:100%;max-width:580px;display:flex;flex-direction:column;gap:14px}
+    .top{display:flex;align-items:center;gap:12px;padding:0 4px;margin-bottom:4px}
+    .top-icon{width:44px;height:44px;background:#5865f2;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+    .top-title{font-size:20px;font-weight:700;color:#fff}
+    .top-sub{font-size:13px;color:#9b9dbe;margin-top:2px}
+    .card{background:rgba(255,255,255,0.06);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:1.25rem}
+    .card-title{font-size:11px;font-weight:700;color:#7b7fa8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px}
+
+    /* platform tabs */
+    .tabs{display:flex;gap:6px;margin-bottom:14px}
+    .tab{flex:1;padding:9px;border-radius:10px;border:1.5px solid rgba(255,255,255,0.1);background:rgba(0,0,0,0.2);color:#7b7fa8;font-size:13px;font-weight:600;cursor:pointer;text-align:center;transition:all 0.15s;user-select:none}
+    .tab:hover{border-color:rgba(255,255,255,0.2);color:#c8cae8}
+    .tab.active-discord{border-color:#5865f2;background:rgba(88,101,242,0.2);color:#a5aaff}
+    .tab.active-telegram{border-color:#229ED9;background:rgba(34,158,217,0.2);color:#7dd3f8}
+    .tab.active-both{border-color:#3ba55c;background:rgba(59,165,92,0.2);color:#57d47b}
+    .tab.active-scores{border-color:#f5a623;background:rgba(245,166,35,0.2);color:#fcc95b}
+
+    /* panel visibility */
+    .panel{display:none}.panel.show{display:block}
+
+    /* inputs */
+    .input-wrap{position:relative;margin-bottom:10px}
+    .input-wrap:last-child{margin-bottom:0}
+    .input-wrap input{width:100%;padding:11px 14px 11px 40px;font-size:14px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.12);border-radius:10px;color:#fff;outline:none;transition:border-color 0.15s}
+    .input-wrap input::placeholder{color:#555870}
+    .input-wrap input:focus{border-color:#5865f2}
+    .input-wrap.tg input:focus{border-color:#229ED9}
+    .input-icon{position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none}
+    .input-ok{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:#3ba55c;font-size:15px;display:none}
+    .input-hint{font-size:11px;color:#555870;margin-top:5px;line-height:1.5}
+    .input-hint a{color:#7b9dbe;text-decoration:none}
+
+    /* sports grid */
+    .sports-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .sport-card{border:1.5px solid rgba(255,255,255,0.1);border-radius:12px;padding:14px 10px;cursor:pointer;transition:all 0.15s;background:rgba(0,0,0,0.2);text-align:center;user-select:none;position:relative}
+    .sport-card:hover{border-color:rgba(255,255,255,0.25);background:rgba(255,255,255,0.06)}
+    .sport-card.selected{border-color:#5865f2;background:rgba(88,101,242,0.18)}
+    .sport-card.selected::after{content:'✓';position:absolute;top:8px;right:9px;font-size:10px;color:#5865f2;font-weight:700}
+    .sport-card .icon{font-size:26px;margin-bottom:7px}
+    .sport-card .name{font-size:13px;font-weight:700;color:#e0e2f5}
+    .sport-card .sub{font-size:11px;color:#7b7fa8;margin-top:2px}
+
+    /* scheduler */
+    .sched-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+    .sched-label{font-size:14px;font-weight:600;color:#e0e2f5}
+    .sched-sub{font-size:12px;color:#7b7fa8;margin-top:1px}
+    .toggle{position:relative;width:46px;height:26px;cursor:pointer;flex-shrink:0}
+    .toggle input{opacity:0;width:0;height:0}
+    .slider{position:absolute;inset:0;background:#333550;border-radius:26px;transition:background 0.2s}
+    .slider:before{content:'';position:absolute;width:20px;height:20px;left:3px;top:3px;background:#666885;border-radius:50%;transition:transform 0.2s,background 0.2s}
+    .toggle input:checked+.slider{background:#5865f2}
+    .toggle input:checked+.slider:before{transform:translateX(20px);background:#fff}
+    .time-pick{display:flex;align-items:center;gap:10px}
+    .time-pick label{font-size:13px;color:#9b9dbe;white-space:nowrap}
+    .time-pick input[type=time]{background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#fff;padding:8px 12px;font-size:14px;outline:none;transition:border-color 0.15s;width:130px}
+    .time-pick input[type=time]:focus{border-color:#5865f2}
+    .countdown{margin-top:12px;padding:10px 14px;background:rgba(88,101,242,0.15);border:1px solid rgba(88,101,242,0.3);border-radius:10px;font-size:13px;color:#a5aaff;display:none;align-items:center;gap:8px}
+    .countdown .dot{width:7px;height:7px;background:#5865f2;border-radius:50%;animation:pulse 1.5s ease-in-out infinite;flex-shrink:0}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.25}}
+    .last-sent{font-size:12px;color:#5a5e80;margin-top:8px;display:none;text-align:center}
+
+    /* send buttons */
+    .btn-row{display:flex;gap:8px}
+    .btn{flex:1;padding:13px;font-size:14px;font-weight:700;border-radius:12px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:all 0.15s}
+    .btn:disabled{opacity:0.45;cursor:not-allowed}
+    .btn-discord{background:#5865f2;color:#fff}
+    .btn-discord:hover:not(:disabled){background:#4752c4}
+    .btn-telegram{background:#229ED9;color:#fff}
+    .btn-telegram:hover:not(:disabled){background:#1a7fab}
+
+    /* status */
+    .status{padding:12px 14px;border-radius:10px;font-size:13px;display:none;margin-top:2px}
+    .status.success{background:rgba(59,165,92,0.15);color:#57d47b;border:1px solid rgba(59,165,92,0.3)}
+    .status.error{background:rgba(237,66,69,0.15);color:#f28b8c;border:1px solid rgba(237,66,69,0.3)}
+    .status.info{background:rgba(88,101,242,0.15);color:#a5aaff;border:1px solid rgba(88,101,242,0.3)}
+    .status.warning{background:rgba(250,168,26,0.15);color:#fcc95b;border:1px solid rgba(250,168,26,0.3)}
+
+    /* preview */
+    .preview{display:none}
+    .preview-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+    .preview-title{font-size:11px;font-weight:700;color:#7b7fa8;text-transform:uppercase;letter-spacing:0.08em}
+    .preview-date{font-size:12px;color:#fcc95b;background:rgba(250,168,26,0.12);border:1px solid rgba(250,168,26,0.25);padding:3px 10px;border-radius:20px;display:none}
+    .sport-label{font-size:11px;font-weight:700;color:#7b7fa8;text-transform:uppercase;letter-spacing:0.06em;margin:14px 0 6px}
+    .sport-label:first-child{margin-top:0}
+    .game-row{background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:10px 14px;font-size:13px;color:#c8cae8;display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+    .game-time{font-size:12px;font-weight:700;color:#5865f2;white-space:nowrap;margin-left:6px;background:rgba(88,101,242,0.15);padding:2px 8px;border-radius:6px}
+    .no-games{color:#555870;font-style:italic}
+    .spinner{width:15px;height:15px;border:2px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;flex-shrink:0}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .debug-box{padding:10px;background:rgba(0,0,0,0.4);border-radius:8px;font-size:11px;color:#666885;font-family:monospace;display:none;max-height:120px;overflow-y:auto}
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <div class="top">
+    <div class="top-icon">🏆</div>
+    <div>
+      <div class="top-title">Sports Schedule Bot</div>
+      <div class="top-sub">Posts today's games to Discord and/or Telegram</div>
+    </div>
+  </div>
+
+  <!-- Destinations -->
+  <div class="card">
+    <div class="card-title">Send To</div>
+    <div class="tabs">
+      <div class="tab active-discord" id="tab-discord" onclick="setTab('discord')">📣 Discord</div>
+      <div class="tab" id="tab-telegram" onclick="setTab('telegram')">✈️ Telegram</div>
+      <div class="tab" id="tab-both" onclick="setTab('both')">⚡ Both</div>
+      <div class="tab" id="tab-scores" onclick="setTab('scores')">🏁 Scores</div>
+    </div>
+
+    <!-- Discord panel -->
+    <div class="panel show" id="panel-discord">
+      <div class="input-wrap">
+        <span class="input-icon">🔗</span>
+        <input type="text" id="discordWebhook" placeholder="https://discord.com/api/webhooks/..." oninput="validateDiscord()"/>
+        <span class="input-ok" id="discordOk">✓</span>
+      </div>
+      <div class="input-hint">Discord → channel settings → Integrations → Webhooks → New Webhook → Copy URL</div>
+    </div>
+
+    <!-- Telegram panel -->
+    <div class="panel" id="panel-telegram">
+      <div class="input-wrap tg">
+        <span class="input-icon">🤖</span>
+        <input type="text" id="tgToken" placeholder="Bot token  e.g. 123456:ABC-DEF..." oninput="validateTelegram()"/>
+        <span class="input-ok" id="tgTokenOk">✓</span>
+      </div>
+      <div class="input-hint" style="margin-bottom:10px">Get a token: message <strong style="color:#7dd3f8">@BotFather</strong> on Telegram → /newbot → follow steps</div>
+      <div class="input-wrap tg">
+        <span class="input-icon">📢</span>
+        <input type="text" id="tgChatId" placeholder="Channel chat ID  e.g. -1001234567890" oninput="validateTelegram()"/>
+        <span class="input-ok" id="tgChatOk">✓</span>
+      </div>
+      <div class="input-hint">
+        To get your channel ID: add <strong style="color:#7dd3f8">@userinfobot</strong> to your channel, send any message, it replies with the ID.<br>
+        Channel IDs start with <strong style="color:#7dd3f8">-100</strong>
+      </div>
+    </div>
+
+    <!-- Both panel -->
+    <div class="panel" id="panel-both">
+      <div class="input-wrap" style="margin-bottom:6px">
+        <span class="input-icon">🔗</span>
+        <input type="text" id="discordWebhook2" placeholder="Discord webhook URL" oninput="validateDiscord2()"/>
+        <span class="input-ok" id="discordOk2">✓</span>
+      </div>
+      <div class="input-wrap tg" style="margin-bottom:6px">
+        <span class="input-icon">🤖</span>
+        <input type="text" id="tgToken2" placeholder="Telegram bot token" oninput="validateTg2()"/>
+        <span class="input-ok" id="tgTokenOk2">✓</span>
+      </div>
+      <div class="input-wrap tg">
+        <span class="input-icon">📢</span>
+        <input type="text" id="tgChatId2" placeholder="Telegram channel chat ID" oninput="validateTg2()"/>
+        <span class="input-ok" id="tgChatOk2">✓</span>
+      </div>
+    </div>
+
+    <!-- Scores panel -->
+    <div class="panel" id="panel-scores">
+      <div style="font-size:13px;color:#9b9dbe;line-height:1.6">
+        Fetches <strong style="color:#e0e2f5">final scores</strong> for today and sends to both Discord and Telegram automatically.
+        Best used in the evening after games finish.
+      </div>
+    </div>
+  </div>
+
+  <!-- Sports -->
+  <div class="card">
+    <div class="card-title">Sports to Track</div>
+    <div class="sports-grid">
+      <div class="sport-card selected" data-sport="mlb" onclick="toggleSport(this)">
+        <div class="icon">⚾</div><div class="name">MLB</div><div class="sub">Baseball</div>
+      </div>
+      <div class="sport-card selected" data-sport="nfl" onclick="toggleSport(this)">
+        <div class="icon">🏈</div><div class="name">NFL</div><div class="sub">Football</div>
+      </div>
+      <div class="sport-card selected" data-sport="soccer" onclick="toggleSport(this)">
+        <div class="icon">⚽</div><div class="name">Soccer</div><div class="sub">World Cup</div>
+      </div>
+      <div class="sport-card selected" data-sport="ufc" onclick="toggleSport(this)">
+        <div class="icon">🥊</div><div class="name">UFC</div><div class="sub">MMA</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scheduler -->
+  <div class="card">
+    <div class="card-title">Auto-Send</div>
+    <div class="sched-row">
+      <div>
+        <div class="sched-label">Send daily at a set time</div>
+        <div class="sched-sub">Each day sends that day's games • tab must stay open</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="autoToggle" onchange="toggleAuto()"/>
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="time-pick">
+      <label for="sendTime">Send at</label>
+      <input type="time" id="sendTime" value="10:00" onchange="onTimeChange()"/>
+    </div>
+    <div class="countdown" id="countdown">
+      <div class="dot"></div>
+      <span id="countdownText">Calculating...</span>
+    </div>
+    <div class="last-sent" id="lastSent"></div>
+  </div>
+
+  <!-- Send buttons -->
+  <div class="btn-row" id="btnRow">
+    <button class="btn btn-discord" id="sendBtn" onclick="sendSchedule()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.015.043.03.056a19.9 19.9 0 0 0 5.993 3.03.077.077 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>
+      Send to Discord
+    </button>
+  </div>
+
+  <div class="status" id="status"></div>
+
+  <!-- Preview -->
+  <div class="card preview" id="preview">
+    <div class="preview-header">
+      <div class="preview-title">Preview</div>
+      <div class="preview-date" id="previewDate"></div>
+    </div>
+    <div id="gameList"></div>
+  </div>
+
+  <div class="debug-box" id="debugBox"></div>
+</div>
+
+<script>
+// ── Emoji maps ────────────────────────────────────────────────────────────────
+const FLAG={
+  'argentina':'🇦🇷','australia':'🇦🇺','austria':'🇦🇹','belgium':'🇧🇪','bolivia':'🇧🇴',
+  'brazil':'🇧🇷','cameroon':'🇨🇲','canada':'🇨🇦','chile':'🇨🇱','china':'🇨🇳',
+  'colombia':'🇨🇴','costa rica':'🇨🇷','croatia':'🇭🇷','czech republic':'🇨🇿',
+  'denmark':'🇩🇰','ecuador':'🇪🇨','egypt':'🇪🇬','england':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','france':'🇫🇷',
+  'germany':'🇩🇪','ghana':'🇬🇭','greece':'🇬🇷','honduras':'🇭🇳','hungary':'🇭🇺',
+  'iran':'🇮🇷','ireland':'🇮🇪','italy':'🇮🇹','ivory coast':'🇨🇮','jamaica':'🇯🇲',
+  'japan':'🇯🇵','mexico':'🇲🇽','morocco':'🇲🇦','netherlands':'🇳🇱','nigeria':'🇳🇬',
+  'norway':'🇳🇴','panama':'🇵🇦','paraguay':'🇵🇾','peru':'🇵🇪','poland':'🇵🇱',
+  'portugal':'🇵🇹','qatar':'🇶🇦','romania':'🇷🇴','saudi arabia':'🇸🇦','scotland':'🏴󠁧󠁢󠁳󠁣󠁴󠁿',
+  'senegal':'🇸🇳','serbia':'🇷🇸','south korea':'🇰🇷','korea republic':'🇰🇷','spain':'🇪🇸',
+  'sweden':'🇸🇪','switzerland':'🇨🇭','tunisia':'🇹🇳','turkey':'🇹🇷','türkiye':'🇹🇷',
+  'ukraine':'🇺🇦','united states':'🇺🇸','usa':'🇺🇸','usmnt':'🇺🇸','uswnt':'🇺🇸',
+  'uruguay':'🇺🇾','venezuela':'🇻🇪','wales':'🏴󠁧󠁢󠁷󠁬󠁳󠁿','new zealand':'🇳🇿',
+  'el salvador':'🇸🇻','guatemala':'🇬🇹','haiti':'🇭🇹','algeria':'🇩🇿',
+  'south africa':'🇿🇦','indonesia':'🇮🇩','iraq':'🇮🇶',
+};
+const MLB_EMOJI={'Arizona Diamondbacks':'🐍','Atlanta Braves':'🪓','Baltimore Orioles':'🐦','Boston Red Sox':'🧦','Chicago Cubs':'🐻','Chicago White Sox':'⚪','Cincinnati Reds':'🔴','Cleveland Guardians':'🗿','Colorado Rockies':'⛰️','Detroit Tigers':'🐯','Houston Astros':'🚀','Kansas City Royals':'👑','Los Angeles Angels':'😇','Los Angeles Dodgers':'🔵','Miami Marlins':'🐟','Milwaukee Brewers':'🍺','Minnesota Twins':'🌲','New York Mets':'🟠','New York Yankees':'⚾','Oakland Athletics':'🐘','Philadelphia Phillies':'🔔','Pittsburgh Pirates':'☠️','San Diego Padres':'⛪','San Francisco Giants':'🌉','Seattle Mariners':'⚓','St. Louis Cardinals':'🐦','Tampa Bay Rays':'☀️','Texas Rangers':'⭐','Toronto Blue Jays':'🦅','Washington Nationals':'🏛️'};
+const NFL_EMOJI={'Arizona Cardinals':'🔴','Atlanta Falcons':'🦅','Baltimore Ravens':'🪶','Buffalo Bills':'🦬','Carolina Panthers':'🐆','Chicago Bears':'🐻','Cincinnati Bengals':'🐯','Cleveland Browns':'🟤','Dallas Cowboys':'⭐','Denver Broncos':'🐴','Detroit Lions':'🦁','Green Bay Packers':'🧀','Houston Texans':'🤠','Indianapolis Colts':'🐴','Jacksonville Jaguars':'🐆','Kansas City Chiefs':'🏹','Las Vegas Raiders':'🏴‍☠️','Los Angeles Chargers':'⚡','Los Angeles Rams':'🐏','Miami Dolphins':'🐬','Minnesota Vikings':'🪖','New England Patriots':'🇺🇸','New Orleans Saints':'⚜️','New York Giants':'🗽','New York Jets':'🟢','Philadelphia Eagles':'🦅','Pittsburgh Steelers':'⚙️','San Francisco 49ers':'🏅','Seattle Seahawks':'🐦','Tampa Bay Buccaneers':'☠️','Tennessee Titans':'⚡','Washington Commanders':'🛡️'};
+function getFlag(n){const k=(n||'').toLowerCase();for(const[c,f]of Object.entries(FLAG))if(k.includes(c))return f;return'🏳️';}
+
+// ── Tab / platform state ──────────────────────────────────────────────────────
+let currentTab='discord';
+function setTab(t){
+  currentTab=t;
+  ['discord','telegram','both','scores'].forEach(x=>{
+    const el=document.getElementById('tab-'+x);
+    if(el) el.className='tab'+(x===t?' active-'+(t==='scores'?'scores':t):'');
+    const panel=document.getElementById('panel-'+x);
+    if(panel) panel.className='panel'+(x===t?' show':'');
+  });
+  updateButtons();
+  saveSettings();
+}
+function updateButtons(){
+  const row=document.getElementById('btnRow');
+  const DSC='<svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.015.043.03.056a19.9 19.9 0 0 0 5.993 3.03.077.077 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>';
+  if(currentTab==='discord'){
+    row.innerHTML='<button class="btn btn-discord" id="sendBtn" onclick="sendSchedule()">'+DSC+' Send to Discord</button>';
+  } else if(currentTab==='telegram'){
+    row.innerHTML='<button class="btn btn-telegram" id="sendBtn" onclick="sendSchedule()">✈️ Send to Telegram</button>';
+  } else if(currentTab==='scores'){
+    row.innerHTML='<button class="btn" id="sendBtn" onclick="sendSchedule()" style="background:#f5a623">🏁 Send Today\'s Scores</button>';
+  } else {
+    row.innerHTML='<button class="btn btn-discord" id="sendBtn" onclick="sendSchedule()" style="font-size:13px">'+DSC+' Discord</button>'
+      +'<button class="btn btn-telegram" id="sendBtn2" onclick="sendSchedule()" style="font-size:13px">✈️ Telegram</button>';
+  }
+}
+
+// ── Validation ────────────────────────────────────────────────────────────────
+function validateDiscord(){
+  const v=document.getElementById('discordWebhook').value.trim();
+  document.getElementById('discordOk').style.display=v.startsWith('https://discord.com/api/webhooks/')?'block':'none';
+  saveSettings();
+}
+function validateTelegram(){
+  const t=document.getElementById('tgToken').value.trim();
+  const c=document.getElementById('tgChatId').value.trim();
+  document.getElementById('tgTokenOk').style.display=t.includes(':')&&t.length>10?'block':'none';
+  document.getElementById('tgChatOk').style.display=c.length>3?'block':'none';
+  saveSettings();
+}
+function validateDiscord2(){
+  const v=document.getElementById('discordWebhook2').value.trim();
+  document.getElementById('discordOk2').style.display=v.startsWith('https://discord.com/api/webhooks/')?'block':'none';
+  saveSettings();
+}
+function validateTg2(){
+  const t=document.getElementById('tgToken2').value.trim();
+  const c=document.getElementById('tgChatId2').value.trim();
+  document.getElementById('tgTokenOk2').style.display=t.includes(':')&&t.length>10?'block':'none';
+  document.getElementById('tgChatOk2').style.display=c.length>3?'block':'none';
+  saveSettings();
+}
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+function setCookie(k,v){document.cookie=k+'='+encodeURIComponent(v)+';expires=Fri,31 Dec 2099 23:59:59 GMT;path=/';}
+function getCookie(k){const m=document.cookie.match('(?:^|; )'+k+'=([^;]*)');return m?decodeURIComponent(m[1]):null;}
+function persist(k,v){try{localStorage.setItem(k,v);}catch(e){}setCookie(k,v);}
+function retrieve(k){try{const v=localStorage.getItem(k);if(v!==null)return v;}catch(e){}return getCookie(k);}
+function saveSettings(){
+  persist('sdb_tab',currentTab);
+  const dw=document.getElementById(currentTab==='both'?'discordWebhook2':'discordWebhook').value;
+  const tt=document.getElementById(currentTab==='both'?'tgToken2':'tgToken').value;
+  const tc=document.getElementById(currentTab==='both'?'tgChatId2':'tgChatId').value;
+  persist('sdb_discord',dw);
+  persist('sdb_tgtoken',tt);
+  persist('sdb_tgchat',tc);
+  document.getElementById('discordWebhook').value=dw;
+  document.getElementById('discordWebhook2').value=dw;
+  document.getElementById('tgToken').value=tt;
+  document.getElementById('tgToken2').value=tt;
+  document.getElementById('tgChatId').value=tc;
+  document.getElementById('tgChatId2').value=tc;
+  persist('sdb_time',document.getElementById('sendTime').value);
+  persist('sdb_auto',autoEnabled?'1':'0');
+  const sp=[...document.querySelectorAll('.sport-card.selected')].map(e=>e.dataset.sport);
+  persist('sdb_sports',JSON.stringify(sp));
+}
+function loadSettings(){
+  const tab=retrieve('sdb_tab')||'discord';
+  setTab(tab);
+  const dw=retrieve('sdb_discord')||'';
+  const tt=retrieve('sdb_tgtoken')||'';
+  const tc=retrieve('sdb_tgchat')||'';
+  document.getElementById('discordWebhook').value=dw;
+  document.getElementById('discordWebhook2').value=dw;
+  document.getElementById('tgToken').value=tt;
+  document.getElementById('tgToken2').value=tt;
+  document.getElementById('tgChatId').value=tc;
+  document.getElementById('tgChatId2').value=tc;
+  validateDiscord();validateTelegram();validateDiscord2();validateTg2();
+  const t=retrieve('sdb_time');if(t)document.getElementById('sendTime').value=t;
+  const sp=JSON.parse(retrieve('sdb_sports')||'[]');
+  if(sp.length)document.querySelectorAll('.sport-card').forEach(el=>el.classList.toggle('selected',sp.includes(el.dataset.sport)));
+  if(retrieve('sdb_auto')==='1'){document.getElementById('autoToggle').checked=true;toggleAuto();}
+}
+function toggleSport(el){el.classList.toggle('selected');saveSettings();}
+
+// ── Scheduler ─────────────────────────────────────────────────────────────────
+let autoEnabled=false,tickInterval=null,lastSentKey=null;
+function toggleAuto(){
+  autoEnabled=document.getElementById('autoToggle').checked;
+  document.getElementById('countdown').style.display=autoEnabled?'flex':'none';
+  if(autoEnabled)startTicker(); else if(tickInterval)clearInterval(tickInterval);
+  saveSettings();
+}
+function startTicker(){
+  if(tickInterval)clearInterval(tickInterval);
+  checkSchedule();tickInterval=setInterval(checkSchedule,30000);
+}
+function getHM(){const v=document.getElementById('sendTime').value||'10:00';const[h,m]=v.split(':').map(Number);return{h,m};}
+function checkSchedule(){
+  if(!autoEnabled)return;
+  updateCountdown();
+  const now=new Date();const key=localDateStr(0);const{h,m}=getHM();
+  if(now.getHours()===h&&now.getMinutes()===m&&lastSentKey!==key){lastSentKey=key;sendSchedule();}
+}
+function fmt12(val){const[hh,mm]=val.split(':').map(Number);const ap=hh>=12?'PM':'AM';const h12=hh%12||12;return`${h12}:${String(mm).padStart(2,'0')} ${ap}`;}
+function updateCountdown(){
+  const now=new Date();const{h,m}=getHM();let next=new Date();next.setHours(h,m,0,0);
+  if(next<=now)next.setDate(next.getDate()+1);
+  const diff=next-now;const hrs=Math.floor(diff/3600000);const mins=Math.floor((diff%3600000)/60000);
+  const val=document.getElementById('sendTime').value||'10:00';
+  const dayLabel=next.toDateString()===new Date().toDateString()?'today':'tomorrow';
+  document.getElementById('countdownText').textContent=`Fires ${dayLabel} at ${fmt12(val)} — in ${hrs}h ${mins}m`;
+}
+function onTimeChange(){saveSettings();if(autoEnabled)updateCountdown();}
+
+// ── Date helpers ──────────────────────────────────────────────────────────────
+function localDateStr(offset=0){
+  const d=new Date();d.setDate(d.getDate()+offset);
+  const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');
+  return`${y}-${m}-${day}`;
+}
+function friendlyDate(offset=0){
+  const d=new Date();d.setDate(d.getDate()+offset);
+  return d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+}
+function isoToLocal(iso){try{return new Date(iso).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});}catch{return'';}}
+
+// ── Status / debug ────────────────────────────────────────────────────────────
+function showStatus(msg,type){const s=document.getElementById('status');s.textContent=msg;s.className='status '+type;s.style.display='block';}
+function dbg(msg){const b=document.getElementById('debugBox');b.style.display='block';b.innerHTML+=msg+'<br>';b.scrollTop=b.scrollHeight;}
+
+// ── API fetchers ──────────────────────────────────────────────────────────────
+async function fetchMLB(dateStr){
+  const url=`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${dateStr}&gameType=R&hydrate=team`;
+  dbg(`MLB → ${url}`);
+  try{
+    const data=await(await fetch(url)).json();
+    dbg(`MLB: ${data.totalGames} games`);
+    const games=[];
+    for(const d of(data.dates||[]))for(const g of(d.games||[]))
+      games.push({away:g.teams?.away?.team?.name||'TBD',home:g.teams?.home?.team?.name||'TBD',time:isoToLocal(g.gameDate||'')});
+    return games;
+  }catch(e){dbg('MLB err:'+e);return[];}
+}
+async function fetchNFL(dateStr){
+  const d=dateStr.replace(/-/g,'');
+  const url=`https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=${d}`;
+  dbg(`NFL → ${url}`);
+  try{
+    const data=await(await fetch(url)).json();
+    dbg(`NFL: ${(data.events||[]).length} events`);
+    return(data.events||[]).map(ev=>{
+      const cs=[...(ev.competitions?.[0]?.competitors||[])].sort(a=>a.homeAway==='away'?-1:1);
+      return{away:cs[0]?.team?.displayName||'TBD',home:cs[1]?.team?.displayName||'TBD',time:isoToLocal(ev.date||'')};
+    });
+  }catch(e){dbg('NFL err:'+e);return[];}
+}
+async function fetchSoccer(dateStr){
+  const d=dateStr.replace(/-/g,'');
+  // Cast a wide net — all major international + club leagues
+  const leagues=['fifa.world'];
+  const seen=new Set();
+  const games=[];
+  for(const lg of leagues){
+    const url='https://site.api.espn.com/apis/site/v2/sports/soccer/'+lg+'/scoreboard?dates='+d;
+    try{
+      const data=await(await fetch(url)).json();
+      for(const ev of(data.events||[])){
+        if(seen.has(ev.id))continue; seen.add(ev.id);
+        const cs=[...(ev.competitions?.[0]?.competitors||[])].sort(a=>a.homeAway==='away'?-1:1);
+        games.push({away:cs[0]?.team?.displayName||'TBD',home:cs[1]?.team?.displayName||'TBD',time:isoToLocal(ev.date||'')});
+      }
+    }catch(e){}
+  }
+  dbg('Soccer total: '+games.length+' games');
+  return games;
+}
+async function fetchUFC(dateStr){
+  // UFC events span a whole week — search 6 days forward to find the next event
+  // We check today and the next 6 days and return the nearest upcoming event
+  const d=dateStr.replace(/-/g,'');
+  const url=`https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard?dates=${d}`;
+  dbg(`UFC → ${url}`);
+  try{
+    const res=await fetch(url);
+    const data=await res.json();
+    const events=data.events||[];
+    dbg(`UFC: ${events.length} events`);
+    if(!events.length) return null;
+    // Take the first event (most recent/upcoming)
+    const ev=events[0];
+    const name=ev.name||ev.shortName||'UFC Event'; // e.g. "UFC Fight Night: Fiziev vs Torres" or "UFC 329"
+    const date=isoToLocal(ev.date||'');
+    const venue=ev.competitions?.[0]?.venue?.fullName||'';
+    const city=ev.competitions?.[0]?.venue?.address?.city||'';
+    const country=ev.competitions?.[0]?.venue?.address?.country||'';
+    const location=[city,country].filter(Boolean).join(', ');
+    const state=ev.status?.type?.state||'pre';
+    return{name,date,venue,location,state,raw:ev.date||''};
+  }catch(e){dbg('UFC err:'+e);return null;}
+}
+
+// Standard UFC card times — these are the typical US ET start times
+// Early Prelims: usually 4-5 PM ET, Prelims: 6-7 PM ET, Main Card: 9-10 PM ET
+// We offset from the main card time parsed from the API
+function getUFCCardTimes(mainCardISO){
+  try{
+    const main=new Date(mainCardISO);
+    // ESPN's event date is usually when the main card starts
+    // Early Prelims = main - 5 hours, Prelims = main - 3 hours
+    const earlyPrelims=new Date(main.getTime()-5*3600000);
+    const prelims=new Date(main.getTime()-3*3600000);
+    return{
+      earlyPrelims:earlyPrelims.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}),
+      prelims:prelims.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}),
+      mainCard:main.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}),
+    };
+  }catch{return{earlyPrelims:'4:00 PM',prelims:'6:00 PM',mainCard:'9:00 PM'};}
+}
+
+// ── Scores fetchers ───────────────────────────────────────────────────────────
+async function fetchMLBScores(dateStr){
+  const url='https://statsapi.mlb.com/api/v1/schedule?sportId=1&date='+dateStr+'&gameType=R&hydrate=team,linescore';
+  try{
+    const data=await(await fetch(url)).json();
+    const games=[];
+    for(const d of(data.dates||[]))for(const g of(d.games||[])){
+      const state=g.status?.abstractGameState||'';
+      if(state!=='Final')continue;
+      games.push({
+        away:g.teams?.away?.team?.name||'TBD',
+        home:g.teams?.home?.team?.name||'TBD',
+        awayScore:g.teams?.away?.score??'',
+        homeScore:g.teams?.home?.score??'',
+      });
+    }
+    return games;
+  }catch(e){dbg('MLB scores err:'+e);return[];}
+}
+async function fetchNFLScores(dateStr){
+  const d=dateStr.replace(/-/g,'');
+  const url='https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates='+d;
+  try{
+    const data=await(await fetch(url)).json();
+    return(data.events||[]).filter(ev=>ev.status?.type?.state==='post').map(ev=>{
+      const cs=[...(ev.competitions?.[0]?.competitors||[])].sort(a=>a.homeAway==='away'?-1:1);
+      return{away:cs[0]?.team?.displayName||'TBD',home:cs[1]?.team?.displayName||'TBD',
+             awayScore:cs[0]?.score||'0',homeScore:cs[1]?.score||'0'};
+    });
+  }catch(e){dbg('NFL scores err:'+e);return[];}
+}
+async function fetchSoccerScores(dateStr){
+  const d=dateStr.replace(/-/g,'');
+  const url='https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates='+d;
+  try{
+    const data=await(await fetch(url)).json();
+    return(data.events||[]).filter(ev=>ev.status?.type?.state==='post').map(ev=>{
+      const cs=[...(ev.competitions?.[0]?.competitors||[])].sort(a=>a.homeAway==='away'?-1:1);
+      return{away:cs[0]?.team?.displayName||'TBD',home:cs[1]?.team?.displayName||'TBD',
+             awayScore:cs[0]?.score||'0',homeScore:cs[1]?.score||'0'};
+    });
+  }catch(e){dbg('Soccer scores err:'+e);return[];}
+}
+async function gatherScores(offset=0){
+  const dateStr=localDateStr(offset);
+  dbg('=== Fetching SCORES for: '+dateStr+' ===');
+  const sel=[...document.querySelectorAll('.sport-card.selected')].map(e=>e.dataset.sport);
+  const r={};
+  if(sel.includes('mlb'))    r.mlb    =await fetchMLBScores(dateStr);
+  if(sel.includes('nfl'))    r.nfl    =await fetchNFLScores(dateStr);
+  if(sel.includes('soccer')) r.soccer =await fetchSoccerScores(dateStr);
+  return r;
+}
+
+// ── Build scores embeds (Discord) ─────────────────────────────────────────────
+function buildScoresDiscord(scores,offset){
+  const dayLabel=friendlyDate(offset);
+  const embeds=[];
+  if(scores.mlb&&scores.mlb.length){
+    const lines=scores.mlb.map(g=>(MLB_EMOJI[g.away]||'⚾')+' **'+g.away+'** '+g.awayScore+' - '+g.homeScore+' **'+g.home+'** '+(MLB_EMOJI[g.home]||'⚾')+' ✅');
+    embeds.push({title:'⚾ MLB Scores — '+dayLabel,color:0xD50032,description:lines.join('\n'),footer:{text:dayLabel+' • Final scores'}});
+  }
+  if(scores.nfl&&scores.nfl.length){
+    const lines=scores.nfl.map(g=>(NFL_EMOJI[g.away]||'🏈')+' **'+g.away+'** '+g.awayScore+' - '+g.homeScore+' **'+g.home+'** '+(NFL_EMOJI[g.home]||'🏈')+' ✅');
+    embeds.push({title:'🏈 NFL Scores — '+dayLabel,color:0x013369,description:lines.join('\n'),footer:{text:dayLabel+' • Final scores'}});
+  }
+  if(scores.soccer&&scores.soccer.length){
+    const lines=scores.soccer.map(g=>getFlag(g.away)+' **'+g.away+'** '+g.awayScore+' - '+g.homeScore+' **'+g.home+'** '+getFlag(g.home)+' ✅');
+    embeds.push({title:'⚽ World Cup Scores — '+dayLabel,color:0x2ECC40,description:lines.join('\n'),footer:{text:dayLabel+' • Final scores'}});
+  }
+  return embeds;
+}
+
+// ── Build scores text (Telegram) ──────────────────────────────────────────────
+async function postTelegramScores(token,chatId,scores,offset){
+  const dayLabel=friendlyDate(offset);
+  let lastResult={ok:true,error:''};
+  if(scores.mlb&&scores.mlb.length){
+    let msg='⚾ MLB Scores — '+dayLabel+'\n';
+    scores.mlb.forEach(g=>{ msg+=(MLB_EMOJI[g.away]||'⚾')+' '+g.away+' '+g.awayScore+' - '+g.homeScore+' '+g.home+' '+(MLB_EMOJI[g.home]||'⚾')+' ✅\n'; });
+    lastResult=await tgSend(token,chatId,msg.trim());
+  }
+  if(scores.nfl&&scores.nfl.length){
+    let msg='🏈 NFL Scores — '+dayLabel+'\n';
+    scores.nfl.forEach(g=>{ msg+=(NFL_EMOJI[g.away]||'🏈')+' '+g.away+' '+g.awayScore+' - '+g.homeScore+' '+g.home+' '+(NFL_EMOJI[g.home]||'🏈')+' ✅\n'; });
+    lastResult=await tgSend(token,chatId,msg.trim());
+  }
+  if(scores.soccer&&scores.soccer.length){
+    let msg='⚽ World Cup Scores — '+dayLabel+'\n';
+    scores.soccer.forEach(g=>{ msg+=getFlag(g.away)+' '+g.away+' '+g.awayScore+' - '+g.homeScore+' '+g.home+' '+getFlag(g.home)+' ✅\n'; });
+    lastResult=await tgSend(token,chatId,msg.trim());
+  }
+  return lastResult;
+}
+
+async function gatherGames(offset=0){
+  const dateStr=localDateStr(offset);
+  dbg(`=== Fetching LOCAL date: ${dateStr} ===`);
+  const sel=[...document.querySelectorAll('.sport-card.selected')].map(e=>e.dataset.sport);
+  const r={};
+  if(sel.includes('mlb'))    r.mlb    =await fetchMLB(dateStr);
+  if(sel.includes('nfl'))    r.nfl    =await fetchNFL(dateStr);
+  if(sel.includes('soccer')) r.soccer =await fetchSoccer(dateStr);
+  if(sel.includes('ufc')){
+    // UFC events are weekly — search today and next 6 days for an event
+    let ufcEvent=null;
+    for(let i=offset;i<=offset+6;i++){
+      ufcEvent=await fetchUFC(localDateStr(i));
+      if(ufcEvent)break;
+    }
+    r.ufc=ufcEvent;
+  }
+  return r;
+}
+function totalGames(g){
+  return Object.values(g).reduce((s,a)=>{
+    if(!a) return s;
+    if(Array.isArray(a)) return s+a.length;
+    return s+1; // UFC is a single event object
+  },0);
+}
+
+// ── Discord sender ────────────────────────────────────────────────────────────
+function buildDiscordEmbeds(games,offset){
+  const dayLabel=friendlyDate(offset);
+  const embeds=[];
+  // MLB
+  if(games.mlb&&Array.isArray(games.mlb)&&games.mlb.length){
+    const lines=games.mlb.map(g=>(MLB_EMOJI[g.away]||'⚾')+' **'+g.away+'** @ **'+g.home+'** '+(MLB_EMOJI[g.home]||'⚾')+' — '+g.time+' 🕐');
+    embeds.push({title:'⚾ MLB — '+dayLabel,color:0xD50032,description:lines.join('\n'),footer:{text:dayLabel+' • via MLB Stats API & ESPN'}});
+  }
+  // NFL
+  if(games.nfl&&Array.isArray(games.nfl)&&games.nfl.length){
+    const lines=games.nfl.map(g=>(NFL_EMOJI[g.away]||'🏈')+' **'+g.away+'** @ '+(NFL_EMOJI[g.home]||'🏈')+' **'+g.home+'** — '+g.time+' 🕐');
+    embeds.push({title:'🏈 NFL — '+dayLabel,color:0x013369,description:lines.join('\n'),footer:{text:dayLabel+' • via ESPN'}});
+  }
+  // Soccer
+  if(games.soccer&&Array.isArray(games.soccer)&&games.soccer.length){
+    const lines=games.soccer.map(g=>getFlag(g.away)+' **'+g.away+'** 🆚 **'+g.home+'** '+getFlag(g.home)+' — '+g.time+' 🕐');
+    embeds.push({title:'⚽ Soccer / World Cup — '+dayLabel,color:0x2ECC40,description:lines.join('\n'),footer:{text:dayLabel+' • via ESPN'}});
+  }
+  // UFC
+  if(games.ufc){
+    const ev=games.ufc;
+    const times=getUFCCardTimes(ev.raw);
+    const loc=ev.location?' — 📍 '+ev.location:'';
+    const desc='🥊 **'+ev.name+'**'+loc+'\n\n'
+      +'**Early Prelims** — '+times.earlyPrelims+' 🕐'+'\n'
+      +'**Prelims** — '+times.prelims+' 🕐'+'\n'
+      +'**Main Card** — '+times.mainCard+' 🕐';
+    const evDate=ev.raw?new Date(ev.raw).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}):'';
+    embeds.push({title:'🥊 UFC / MMA'+(evDate?' — '+evDate:''),color:0xF5A623,description:desc,footer:{text:dayLabel+' • via ESPN'}});
+  }
+  return embeds;
+}
+async function postDiscord(webhook,payload,offset,rawEmbeds){
+  const embeds=rawEmbeds?payload.embeds:buildDiscordEmbeds(payload,offset);
+  const res=await fetch(webhook,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({username:'🏆 Sports Schedule Bot',embeds})});
+  return res.ok||res.status===204;
+}
+
+// ── Telegram sender ───────────────────────────────────────────────────────────
+function buildTelegramText(games,offset){
+  const dayLabel=friendlyDate(offset);
+  let msg='';
+  if(games.mlb&&Array.isArray(games.mlb)){
+    msg+='\n⚾ MLB\n';
+    if(!games.mlb.length) msg+='No games scheduled\n';
+    else games.mlb.forEach(g=>{ msg+=(MLB_EMOJI[g.away]||'⚾')+' '+g.away+' @ '+g.home+' '+(MLB_EMOJI[g.home]||'⚾')+' - '+g.time+' 🕐'+'\n'; });
+  }
+  if(games.nfl&&Array.isArray(games.nfl)){
+    msg+='\n🏈 NFL\n';
+    if(!games.nfl.length) msg+='No games scheduled\n';
+    else games.nfl.forEach(g=>{ msg+=(NFL_EMOJI[g.away]||'🏈')+' '+g.away+' @ '+(NFL_EMOJI[g.home]||'🏈')+' '+g.home+' - '+g.time+' 🕐'+'\n'; });
+  }
+  if(games.soccer&&Array.isArray(games.soccer)){
+    msg+='\n⚽ Soccer\n';
+    if(!games.soccer.length) msg+='No games scheduled\n';
+    else games.soccer.forEach(g=>{ msg+=getFlag(g.away)+' '+g.away+' 🆚 '+g.home+' '+getFlag(g.home)+' - '+g.time+' 🕐'+'\n'; });
+  }
+  if(games.ufc){
+    const ev=games.ufc;
+    const times=getUFCCardTimes(ev.raw);
+    const ufcDate=ev.raw?new Date(ev.raw).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}):'';
+    msg+='\n🥊 UFC / MMA'+(ufcDate?' - '+ufcDate:'')+'\n';
+    msg+=ev.name+(ev.location?' - '+ev.location:'')+'\n';
+    msg+='Early Prelims: '+times.earlyPrelims+' 🕐'+'\n';
+    msg+='Prelims: '+times.prelims+' 🕐'+'\n';
+    msg+='Main Card: '+times.mainCard+' 🕐'+'\n';
+  }
+  return msg.trim();
+}
+async function tgSend(token,chatId,text){
+  const url='https://api.telegram.org/bot'+token+'/sendMessage';
+  try{
+    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({chat_id:chatId,text})});
+    const data=await res.json();
+    dbg('TG response: '+JSON.stringify(data));
+    if(!data.ok)dbg('TG ERROR: '+data.description);
+    return{ok:data.ok,error:data.description||'unknown error'};
+  }catch(e){dbg('TG fetch error: '+e);return{ok:false,error:String(e)};}
+}
+async function postTelegram(token,chatId,games,offset){
+  const dayLabel=friendlyDate(offset);
+  let lastResult={ok:true,error:''};
+  // MLB
+  if(games.mlb&&Array.isArray(games.mlb)&&games.mlb.length){
+    let msg='⚾ MLB — '+dayLabel+'\n';
+    games.mlb.forEach(g=>{ msg+=(MLB_EMOJI[g.away]||'⚾')+' '+g.away+' @ '+g.home+' '+(MLB_EMOJI[g.home]||'⚾')+' - '+g.time+' 🕐'+'\n'; });
+    lastResult=await tgSend(token,chatId,msg.trim());
+  }
+  // NFL
+  if(games.nfl&&Array.isArray(games.nfl)&&games.nfl.length){
+    let msg='🏈 NFL — '+dayLabel+'\n';
+    games.nfl.forEach(g=>{ msg+=(NFL_EMOJI[g.away]||'🏈')+' '+g.away+' @ '+(NFL_EMOJI[g.home]||'🏈')+' '+g.home+' - '+g.time+' 🕐'+'\n'; });
+    lastResult=await tgSend(token,chatId,msg.trim());
+  }
+  // Soccer
+  if(games.soccer&&Array.isArray(games.soccer)&&games.soccer.length){
+    let msg='⚽ Soccer — '+dayLabel+'\n';
+    games.soccer.forEach(g=>{ msg+=getFlag(g.away)+' '+g.away+' 🆚 '+g.home+' '+getFlag(g.home)+' - '+g.time+' 🕐'+'\n'; });
+    lastResult=await tgSend(token,chatId,msg.trim());
+  }
+  // UFC
+  if(games.ufc){
+    const ev=games.ufc;
+    const times=getUFCCardTimes(ev.raw);
+    const ufcDate=ev.raw?new Date(ev.raw).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}):'';
+    let msg='🥊 UFC / MMA'+(ufcDate?' - '+ufcDate:'')+'\n';
+    msg+=ev.name+(ev.location?' - '+ev.location:'')+'\n';
+    msg+='Early Prelims: '+times.earlyPrelims+' 🕐'+'\n';
+    msg+='Prelims: '+times.prelims+' 🕐'+'\n';
+    msg+='Main Card: '+times.mainCard+' 🕐';
+    lastResult=await tgSend(token,chatId,msg.trim());
+  }
+  return lastResult;
+}
+
+// ── Preview ───────────────────────────────────────────────────────────────────
+function showPreview(games,offset){
+  const list=document.getElementById('gameList'),pd=document.getElementById('previewDate');
+  list.innerHTML='';
+  if(offset>0){pd.textContent=`Showing ${friendlyDate(offset)} (no games today)`;pd.style.display='block';}
+  else pd.style.display='none';
+  const defs=[
+    {key:'mlb',  label:'⚾ MLB',   ts:g=>`${MLB_EMOJI[g.away]||'⚾'} ${g.away} @ ${g.home} ${MLB_EMOJI[g.home]||'⚾'}`},
+    {key:'nfl',  label:'🏈 NFL',   ts:g=>`${NFL_EMOJI[g.away]||'🏈'} ${g.away} @ ${NFL_EMOJI[g.home]||'🏈'} ${g.home}`},
+    {key:'soccer',label:'⚽ Soccer',ts:g=>`${getFlag(g.away)} ${g.away} 🆚 ${g.home} ${getFlag(g.home)}`},
+  ];
+  for(const d of defs){
+    if(!games[d.key]||!Array.isArray(games[d.key]))continue;
+    const lbl=document.createElement('div');lbl.className='sport-label';lbl.textContent=d.label;list.appendChild(lbl);
+    if(!games[d.key].length){}
+    else for(const g of games[d.key]){const row=document.createElement('div');row.className='game-row';row.innerHTML=`<span>${d.ts(g)}</span><span class="game-time">${g.time}</span>`;list.appendChild(row);}
+  }
+  // UFC preview
+  if(games.ufc){
+    const ev=games.ufc;
+    const times=getUFCCardTimes(ev.raw);
+    const lbl=document.createElement('div');lbl.className='sport-label';const ufcEvDate=ev.raw?new Date(ev.raw).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}):'';lbl.textContent='🥊 UFC / MMA'+(ufcEvDate?' — '+ufcEvDate:'');list.appendChild(lbl);
+    const nameRow=document.createElement('div');nameRow.className='game-row';
+    nameRow.innerHTML=`<span style="font-weight:600">${ev.name}</span>${ev.location?`<span class="game-time" style="background:rgba(245,166,35,0.15);color:#f5a623">📍 ${ev.location}</span>`:''}`;
+    list.appendChild(nameRow);
+    const cards=[['Early Prelims',times.earlyPrelims],['Prelims',times.prelims],['Main Card',times.mainCard]];
+    for(const[label,time]of cards){
+      const row=document.createElement('div');row.className='game-row';
+      row.innerHTML=`<span>${label}</span><span class="game-time" style="background:rgba(245,166,35,0.15);color:#f5a623">${time} 🕐</span>`;
+      list.appendChild(row);
+    }
+  }
+  document.getElementById('preview').style.display='block';
+}
+
+// ── Main send ─────────────────────────────────────────────────────────────────
+const DISCORD_SVG='<svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.015.043.03.056a19.9 19.9 0 0 0 5.993 3.03.077.077 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>';
+
+async function sendSchedule(){
+  document.getElementById('debugBox').innerHTML='';
+  if(!document.querySelectorAll('.sport-card.selected').length){showStatus('Pick at least one sport.','error');return;}
+
+  const btn=document.getElementById('sendBtn');
+  btn.disabled=true;btn.innerHTML='<div class="spinner"></div> Fetching games...';
+
+  const isScores=currentTab==='scores';
+  showStatus((isScores?'Fetching scores':'Fetching games')+' for '+friendlyDate(0)+' ('+localDateStr(0)+')...','info');
+
+  let games=null,scores=null,offset=0;
+  if(isScores){
+    scores=await gatherScores(0);
+    const hasScores=Object.values(scores).some(a=>Array.isArray(a)&&a.length>0);
+    if(!hasScores){showStatus('No final scores yet for today.','warning');btn.disabled=false;updateButtons();return;}
+    showPreview(scores,0);
+  } else {
+    games=await gatherGames(0);
+    if(totalGames(games)===0){
+      showStatus('No games today — checking tomorrow...','warning');
+      games=await gatherGames(1);offset=1;
+    }
+    showPreview(games,offset);
+  }
+
+  btn.innerHTML='<div class="spinner"></div> Sending...';
+  const results=[];
+  const wh=retrieve('sdb_discord')||'';
+  const tt=retrieve('sdb_tgtoken')||'';
+  const tc=retrieve('sdb_tgchat')||'';
+
+  if(isScores){
+    // Scores tab — send to both Discord and Telegram
+    if(wh.startsWith('https://discord.com/api/webhooks/')){
+      try{const ok=await postDiscord(wh,{embeds:buildScoresDiscord(scores,0)},0,true);results.push(ok?'✅ Discord: sent!':'❌ Discord: server error');}
+      catch(e){results.push('❌ Discord: network error');}
+    }
+    if(tt&&tc){
+      try{const r=await postTelegramScores(tt,tc,scores,0);results.push(r.ok?'✅ Telegram: sent!':'❌ Telegram: '+r.error);}
+      catch(e){results.push('❌ Telegram: network error');}
+    }
+  } else {
+    if(wh.startsWith('https://discord.com/api/webhooks/')){
+      try{const ok=await postDiscord(wh,games,offset,false);results.push(ok?'✅ Discord: sent!':'❌ Discord: server error');}
+      catch(e){results.push('❌ Discord: network error');}
+    } else if(currentTab==='discord'||currentTab==='both'){
+      results.push('❌ Discord: no webhook URL saved');
+    }
+    if(tt&&tc){
+      try{const r=await postTelegram(tt,tc,games,offset);results.push(r.ok?'✅ Telegram: sent!':'❌ Telegram: '+r.error);}
+      catch(e){results.push('❌ Telegram: network error');}
+    } else if(currentTab==='telegram'||currentTab==='both'){
+      results.push('❌ Telegram: no token/chat ID saved');
+    }
+  }
+
+  const allOk=results.every(r=>r.startsWith('✅'));
+  showStatus(results.join('  •  '),allOk?'success':'error');
+  if(allOk){
+    const now=new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
+    const ls=document.getElementById('lastSent');ls.textContent=`Last sent: ${friendlyDate(offset)} at ${now}`;ls.style.display='block';
+  }
+
+  btn.disabled=false;
+  updateButtons();
+}
+
+loadSettings();
+</script>
+</body>
+</html>
