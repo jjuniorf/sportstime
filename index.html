@@ -537,8 +537,23 @@ async function fetchSoccerScores(dateStr){
     const data=await(await fetch(url)).json();
     return(data.events||[]).filter(ev=>ev.status?.type?.state==='post').map(ev=>{
       const cs=[...(ev.competitions?.[0]?.competitors||[])].sort(a=>a.homeAway==='away'?-1:1);
-      return{away:cs[0]?.team?.displayName||'TBD',home:cs[1]?.team?.displayName||'TBD',
-             awayScore:cs[0]?.score||'0',homeScore:cs[1]?.score||'0'};
+      const away=cs[0], home=cs[1];
+      const awayScore=away?.score||'0';
+      const homeScore=home?.score||'0';
+      // Check for penalty shootout — ESPN stores it in shootout or linescore
+      const comp=ev.competitions?.[0]||{};
+      const hasPens=comp.shootoutStyle||
+        (away?.shootoutScore!==undefined)||
+        (comp.notes||[]).some(n=>(n.text||'').toLowerCase().includes('pen'));
+      const awayPens=away?.shootoutScore??null;
+      const homePens=home?.shootoutScore??null;
+      return{
+        away:away?.team?.displayName||'TBD',
+        home:home?.team?.displayName||'TBD',
+        awayScore, homeScore,
+        awayPens, homePens,
+        hasPens:hasPens&&awayPens!==null
+      };
     });
   }catch(e){dbg('Soccer scores err:'+e);return[];}
 }
@@ -566,7 +581,12 @@ function buildScoresDiscord(scores,offset){
     embeds.push({title:'🏈 NFL Scores — '+dayLabel,color:0x013369,description:lines.join('\n'),footer:{text:dayLabel+' • Final scores'}});
   }
   if(scores.soccer&&scores.soccer.length){
-    const lines=scores.soccer.map(g=>getFlag(g.away)+' **'+g.away+'** '+g.awayScore+' - '+g.homeScore+' **'+g.home+'** '+getFlag(g.home)+' ✅');
+    const lines=scores.soccer.map(g=>{
+      const sc=g.hasPens
+        ?g.awayScore+'('+g.awayPens+') - ('+g.homePens+')'+g.homeScore
+        :g.awayScore+' - '+g.homeScore;
+      return getFlag(g.away)+' **'+g.away+'** '+sc+' **'+g.home+'** '+getFlag(g.home)+' ✅';
+    });
     embeds.push({title:'⚽ World Cup Scores — '+dayLabel,color:0x2ECC40,description:lines.join('\n'),footer:{text:dayLabel+' • Final scores'}});
   }
   return embeds;
@@ -588,7 +608,12 @@ async function postTelegramScores(token,chatId,scores,offset){
   }
   if(scores.soccer&&scores.soccer.length){
     let msg='⚽ World Cup Scores — '+dayLabel+'\n';
-    scores.soccer.forEach(g=>{ msg+=getFlag(g.away)+' '+g.away+' '+g.awayScore+' - '+g.homeScore+' '+g.home+' '+getFlag(g.home)+' ✅\n'; });
+    scores.soccer.forEach(g=>{
+      const sc=g.hasPens
+        ?g.awayScore+'('+g.awayPens+') - ('+g.homePens+')'+g.homeScore
+        :g.awayScore+' - '+g.homeScore;
+      msg+=getFlag(g.away)+' '+g.away+' '+sc+' '+g.home+' '+getFlag(g.home)+' ✅\n';
+    });
     lastResult=await tgSend(token,chatId,msg.trim());
   }
   return lastResult;
